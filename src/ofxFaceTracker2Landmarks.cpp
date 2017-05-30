@@ -116,7 +116,7 @@ ofMesh ofxFaceTracker2Landmarks::getMesh(vector<T> points) const {
     
     ofMesh mesh;
     mesh.setMode(OF_PRIMITIVE_TRIANGLES);
-    
+    int nVerts = 0;
     for( size_t i = 0; i < triangleList.size(); i++ )
     {
         cv::Vec6f t = triangleList[i];
@@ -125,7 +125,7 @@ ofMesh ofxFaceTracker2Landmarks::getMesh(vector<T> points) const {
         cv::Point2f pt2 = cv::Point(cvRound(t[2]), cvRound(t[3]));
         cv::Point2f pt3 = cv::Point(cvRound(t[4]), cvRound(t[5]));
         
-        // Draw rectangles completely inside the image.
+        // only add triangles completely inside the image.
         if ( rect.contains(pt1) && rect.contains(pt2) && rect.contains(pt3))
         {
             ofVec2f p1, p2, p3;
@@ -135,9 +135,15 @@ ofMesh ofxFaceTracker2Landmarks::getMesh(vector<T> points) const {
 			mesh.addVertex(p1);
             mesh.addVertex(p2);
             mesh.addVertex(p3);
-			mesh.addTexCoord(p1);
-			mesh.addTexCoord(p2);
-			mesh.addTexCoord(p3);
+			ofVec2f div = ofGetUsingArbTex() ? ofVec2f(1.) : ofVec2f(rect.width, rect.height);
+			mesh.addTexCoord(p1 / div);
+			mesh.addTexCoord(p2 / div);
+			mesh.addTexCoord(p3 / div);
+
+			// add indices
+			mesh.addIndex(nVerts++);
+			mesh.addIndex(nVerts++);
+			mesh.addIndex(nVerts++);
         }
     }
     return mesh;
