@@ -105,46 +105,58 @@ ofMesh ofxFaceTracker2Landmarks::getMesh(vector<T> points) const {
     cv::Rect rect(0, 0, info.inputWidth, info.inputHeight);
     cv::Subdiv2D subdiv(rect);
     
-    for(int i=0;i<points.size();i++){
-        if( rect.contains(points[i]) ){
-            subdiv.insert(points[i]);
-        }
+	map<int,int> sdPts;
+	for(size_t i=0;i<points.size();i++) {
+        if( rect.contains(points[i])) {
+			int id = subdiv.insert(points[i]);
+			sdPts[id] = i;
+		}
     }
     
+	// delaunay
     vector<cv::Vec6f> triangleList;
     subdiv.getTriangleList(triangleList);
     
     ofMesh mesh;
     mesh.setMode(OF_PRIMITIVE_TRIANGLES);
-    int nVerts = 0;
-    for( size_t i = 0; i < triangleList.size(); i++ )
-    {
-        cv::Vec6f t = triangleList[i];
-        
-        cv::Point2f pt1 = cv::Point(cvRound(t[0]), cvRound(t[1]));
-        cv::Point2f pt2 = cv::Point(cvRound(t[2]), cvRound(t[3]));
-        cv::Point2f pt3 = cv::Point(cvRound(t[4]), cvRound(t[5]));
-        
-        // only add triangles completely inside the image.
-        if ( rect.contains(pt1) && rect.contains(pt2) && rect.contains(pt3))
-        {
-            ofVec2f p1, p2, p3;
-			p1 = ofxCv::toOf(pt1);
-			p2 = ofxCv::toOf(pt2);
-			p3 = ofxCv::toOf(pt3);
-			mesh.addVertex(p1);
-            mesh.addVertex(p2);
-            mesh.addVertex(p3);
-			ofVec2f div = ofGetUsingArbTex() ? ofVec2f(1.) : ofVec2f(rect.width, rect.height);
-			mesh.addTexCoord(p1 / div);
-			mesh.addTexCoord(p2 / div);
-			mesh.addTexCoord(p3 / div);
 
-			// add indices
-			mesh.addIndex(nVerts++);
-			mesh.addIndex(nVerts++);
-			mesh.addIndex(nVerts++);
-        }
+	// add the mesh vertices, which we later index per delaunay results
+	mesh.addVertices(ofxCv::toOf(points).getVertices());
+
+	// add texture coords in pixel dims or normalized
+	ofVec2f div =  ofGetUsingArbTex() ? ofVec2f(1.) : ofVec2f(rect.width, rect.height);
+	for (auto& vt : mesh.getVertices()) {
+		mesh.addTexCoord(vt / div);
+	}
+
+	
+	for (size_t i = 0; i < triangleList.size(); i++)
+	{
+		cv::Vec6f& t = triangleList[i];
+
+		// find indices in mesh vertices corresponding to delaunay result
+		vector<ofIndexType> indices;
+		for (int j = 0; j < 3; j++) {
+			cv::Point2f pos = cv::Point2f(t[j * 2], t[j * 2 + 1]);
+			if (rect.contains(pos)) {
+				int sdId = subdiv.findNearest(pos);
+				int ptId = -1;
+				try {
+					ptId = sdPts.at(sdId);
+				}
+				catch (...){
+					ofLogError("ofxFaceTracker2Landmarks") << "can't find subdiv point [" << sdId << "] in image mesh verts...";
+				}
+				if (ptId >= 0 && ptId < mesh.getNumVertices()) {
+					indices.push_back(ptId);
+				}
+			}
+		}
+		if (indices.size() == 3) {
+			// add mesh indices if we've found a whole triangle
+			mesh.addIndices(indices);
+		}
+        
     }
     return mesh;
     
