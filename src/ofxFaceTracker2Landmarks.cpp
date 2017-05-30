@@ -128,9 +128,16 @@ ofMesh ofxFaceTracker2Landmarks::getMesh(vector<T> points) const {
         // Draw rectangles completely inside the image.
         if ( rect.contains(pt1) && rect.contains(pt2) && rect.contains(pt3))
         {
-            mesh.addVertex(ofxCv::toOf(pt1));
-            mesh.addVertex(ofxCv::toOf(pt2));
-            mesh.addVertex(ofxCv::toOf(pt3));
+            ofVec2f p1, p2, p3;
+			p1 = ofxCv::toOf(pt1);
+			p2 = ofxCv::toOf(pt2);
+			p3 = ofxCv::toOf(pt3);
+			mesh.addVertex(p1);
+            mesh.addVertex(p2);
+            mesh.addVertex(p3);
+			mesh.addTexCoord(p1);
+			mesh.addTexCoord(p2);
+			mesh.addTexCoord(p3);
         }
     }
     return mesh;
